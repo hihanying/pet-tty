@@ -5,12 +5,11 @@
   给 Claude Code 的桌面宠物 · 终端输入 <code>pettty</code> 启动
 </p>
 
-<!-- Record a short demo (pet reacting to Claude thinking / editing / success)
-     and save as docs/demo.gif, then replace this comment with:
-     <p align="center"><img src="docs/demo.gif" alt="PetDeck demo" width="440"/></p> -->
+<p align="center"><strong>Windows-first development build. Tagged releases publish MSI and NSIS installers.</strong></p>
 
 <p align="center">
   <a href="https://github.com/Wanbinyu/pet-tty/releases"><img src="https://img.shields.io/github/v/release/Wanbinyu/pet-tty?label=version" alt="version"/></a>
+  <a href="https://github.com/Wanbinyu/pet-tty/actions/workflows/ci.yml"><img src="https://github.com/Wanbinyu/pet-tty/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://github.com/Wanbinyu/pet-tty"><img src="https://img.shields.io/github/stars/Wanbinyu/pet-tty?style=social" alt="stars"/></a>
   <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="platform"/>
   <img src="https://img.shields.io/badge/stack-Tauri%202%20%7C%20Vite%20%7C%20Rust-DEA584" alt="stack"/>
@@ -40,7 +39,7 @@ This runs **`npm run tauri dev`** (Vite + Rust). Do **not** launch bare `debug/p
 | Command | What it does |
 |--------|----------------|
 | `pettty` | Start pet (= `tauri dev`), auto-repair Claude hooks |
-| `pettty release` | Start release `.exe` (after `pettty build`) |
+| `pettty release` | Start a local or downloaded release `.exe` |
 | `pettty build` | Build release binary |
 | `pettty test` | Send a test status event (pet must be running) |
 | `pettty hooks` | Install/repair Claude hooks (HTTP + command) |
@@ -85,6 +84,20 @@ Manual test without Claude:
 pettty test
 ```
 
+### Build and release
+
+For a local development build:
+
+```powershell
+npm ci
+npm run typecheck
+npm run build
+npm run tauri:build
+```
+
+Pushing a tag such as `v0.3.2` runs the Windows release workflow and publishes
+the generated MSI and NSIS installers to GitHub Releases.
+
 ### Features
 
 - Local HTTP bridge `127.0.0.1:7788`
@@ -104,9 +117,11 @@ pettty test
 | CLI | `pettty` (Node) |
 | Bridge | Rust `tiny_http` |
 
-### Privacy
+### Privacy and security
 
-Runs locally. Hooks only hit `127.0.0.1`. Don’t commit secrets.
+Runs locally. The bridge binds to `127.0.0.1:7788` and is intended for a trusted
+local machine; it does not provide remote authentication. Hooks only hit the
+local bridge. Don’t commit secrets.
 
 ### Prerequisites
 
@@ -203,3 +218,7 @@ Node.js 18+、Rust、WebView2；Windows 需 C++ 生成工具。
 | **0.3.1** | `pettty` CLI · UI delivery fix (eval + poll) · bilingual README |
 
 Repo: [github.com/Wanbinyu/pet-tty](https://github.com/Wanbinyu/pet-tty)
+
+## License
+
+MIT. See [LICENSE](LICENSE).
