@@ -27,6 +27,7 @@ const hookScript = path
 const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
 const BASE = "http://127.0.0.1:7788/hooks/claude";
 const EVENT = "http://127.0.0.1:7788/event";
+const tokenMode = Boolean(process.env.PETDECK_BRIDGE_TOKEN?.trim());
 
 const PHASES = [
   "UserPromptSubmit",
@@ -60,11 +61,11 @@ function commandHook(phase) {
   };
 }
 
-/** One matcher entry with http + command (Claude runs listed hooks). */
+/** Use command-only hooks in token mode so the token stays out of settings.json. */
 function phaseEntry(phase) {
   return {
     matcher: "*",
-    hooks: [httpHook(phase), commandHook(phase)],
+    hooks: tokenMode ? [commandHook(phase)] : [httpHook(phase), commandHook(phase)],
   };
 }
 
@@ -117,7 +118,7 @@ if (quiet) {
 } else {
   console.log("OK: Claude → PetDeck hooks installed");
   console.log("  settings:", settingsPath);
-  console.log("  HTTP:   ", BASE);
+  console.log("  HTTP:   ", tokenMode ? "disabled in token mode" : BASE);
   console.log("  command:", hookScript);
   console.log("  phases: ", PHASES.join(", "));
   console.log("");

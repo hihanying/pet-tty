@@ -25,16 +25,19 @@ function postJsonFast(urlStr, body) {
   try {
     const u = new URL(urlStr);
     const data = JSON.stringify(body);
+    const headers = {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(data),
+      Connection: "close",
+    };
+    const token = process.env.PETDECK_BRIDGE_TOKEN?.trim();
+    if (token) headers["X-PetDeck-Token"] = token;
     const req = http.request({
       hostname: u.hostname,
       port: u.port || 80,
       path: u.pathname + u.search,
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(data),
-        Connection: "close",
-      },
+      headers,
       timeout: 400,
     });
     req.on("error", () => {});

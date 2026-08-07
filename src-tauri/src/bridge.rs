@@ -13,13 +13,16 @@
 
 use serde_json::{json, Value};
 use std::collections::VecDeque;
+use std::io::Read;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use tauri::{AppHandle, Emitter, Manager};
-use tiny_http::{Header, Method, Response, Server, StatusCode};
+use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 
 pub const DEFAULT_PORT: u16 = 7788;
 const RING_CAP: usize = 128;
+const MAX_BODY_BYTES: usize = 256 * 1024;
+const BRIDGE_TOKEN_ENV: &str = "PETDECK_BRIDGE_TOKEN";
 
 struct EventRing {
     next_seq: u64,
@@ -109,9 +112,29 @@ pub fn pull_agent_events(after_seq: u64) -> Value {
     })
 }
 
-fn cors(response: Response<std::io::Cursor<Vec<u8>>>) -> Response<std::io::Cursor<Vec<u8>>> {
-    response
-        .with_header(Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap())
+fn header_value<'a>(request: &'a Request, name: &'static str) -> Option<&'a str> {
+    request
+        .headers()
+        .iter()
+        .find(|header| header.field.equiv(name))
+        .map(|header| header.value.as_str())
+}
+
+fn allowed_origin(origin: &str) -> bool {
+    matches!(
+        origin,
+        "http://localhost:1420"
+            | "http://127.0.0.1:1420"
+            | "http://tauri.localhost"
+            | "https://tauri.localhost"
+    )
+}
+
+fn cors(
+    mut response: Response<std::io::Cursor<Vec<u8>>>,
+    origin: Option<&str>,
+) -> Response<std::io::Cursor<Vec<u8>>> {
+    response = response
         .with_header(
             Header::from_bytes(
                 &b"Access-Control-Allow-Methods"[..],
@@ -120,19 +143,85 @@ fn cors(response: Response<std::io::Cursor<Vec<u8>>>) -> Response<std::io::Curso
             .unwrap(),
         )
         .with_header(
-            Header::from_bytes(&b"Access-Control-Allow-Headers"[..], &b"Content-Type"[..])
-                .unwrap(),
-        )
+            Header::from_bytes(
+                &b"Access-Control-Allow-Headers"[..],
+                &b"Content-Type, X-PetDeck-Token"[..],
+            )
+            .unwrap(),
+        );
+
+    if let Some(origin) = origin.filter(|origin| allowed_origin(origin)) {
+        response = response
+            .with_header(
+                Header::from_bytes(&b"Access-Control-Allow-Origin"[..], origin.as_bytes()).unwrap(),
+            )
+            .with_header(Header::from_bytes(&b"Vary"[..], &b"Origin"[..]).unwrap());
+    }
+
+    response
 }
 
-fn json_response(status: u16, body: Value) -> Response<std::io::Cursor<Vec<u8>>> {
+fn json_response(
+    status: u16,
+    body: Value,
+    origin: Option<&str>,
+) -> Response<std::io::Cursor<Vec<u8>>> {
     cors(
         Response::from_string(body.to_string())
             .with_status_code(StatusCode(status))
             .with_header(
                 Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap(),
             ),
+        origin,
     )
+}
+
+fn is_json_content_type(value: Option<&str>) -> bool {
+    value
+        .and_then(|value| value.split(';').next())
+        .map(str::trim)
+        .is_some_and(|value| value.eq_ignore_ascii_case("application/json"))
+}
+
+fn has_json_content_type(request: &Request) -> bool {
+    is_json_content_type(header_value(request, "Content-Type"))
+}
+
+fn read_body(request: &mut Request) -> Result<String, &'static str> {
+    let mut bytes = Vec::new();
+    request
+        .as_reader()
+        .take((MAX_BODY_BYTES as u64) + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "failed to read request body")?;
+
+    if bytes.len() > MAX_BODY_BYTES {
+        return Err("request body too large");
+    }
+
+    String::from_utf8(bytes).map_err(|_| "request body must be UTF-8")
+}
+
+fn configured_token() -> Option<String> {
+    std::env::var(BRIDGE_TOKEN_ENV)
+        .ok()
+        .map(|token| token.trim().to_owned())
+        .filter(|token| !token.is_empty())
+}
+
+fn token_matches(expected: Option<&str>, provided: Option<&str>) -> bool {
+    let Some(expected) = expected else {
+        return true;
+    };
+    let Some(provided) = provided else {
+        return false;
+    };
+
+    let mut difference = expected.len() ^ provided.len();
+    for (left, right) in expected.as_bytes().iter().zip(provided.as_bytes()) {
+        difference |= usize::from(*left ^ right);
+    }
+    difference == 0
 }
 
 /// Map Claude Code hook JSON → petdeck.event.v1
@@ -156,11 +245,8 @@ fn map_claude_hook(raw: &Value, phase_hint: &str) -> Value {
         .cloned()
         .unwrap_or(json!({}));
 
-    let session_id = first_str(
-        raw,
-        &["session_id", "sessionId", "transcript_path", "cwd"],
-    )
-    .unwrap_or_else(|| "claude-session".into());
+    let session_id = first_str(raw, &["session_id", "sessionId", "transcript_path", "cwd"])
+        .unwrap_or_else(|| "claude-session".into());
 
     let short_sid = short_session(&session_id);
 
@@ -341,6 +427,11 @@ fn trunc(s: &str, n: usize) -> String {
 }
 
 pub fn start(app: AppHandle, port: u16) {
+    let expected_token = configured_token();
+    if expected_token.is_some() {
+        eprintln!("[petdeck-bridge] token auth enabled for POST /event and /hooks/claude");
+    }
+
     thread::spawn(move || {
         let addr = format!("127.0.0.1:{port}");
         let server = match Server::http(&addr) {
@@ -367,9 +458,24 @@ pub fn start(app: AppHandle, port: u16) {
             let url = request.url().to_string();
             let path = url.split('?').next().unwrap_or("/").to_string();
             let query = url.split('?').nth(1).unwrap_or("");
+            let origin = header_value(&request, "Origin").map(str::to_owned);
+
+            if let Some(origin) = origin.as_deref() {
+                if !allowed_origin(origin) {
+                    let _ = request.respond(json_response(
+                        403,
+                        json!({"ok": false, "error": "origin not allowed"}),
+                        None,
+                    ));
+                    continue;
+                }
+            }
 
             if method == Method::Options {
-                let _ = request.respond(cors(Response::from_string("").with_status_code(StatusCode(204))));
+                let _ = request.respond(cors(
+                    Response::from_string("").with_status_code(StatusCode(204)),
+                    origin.as_deref(),
+                ));
                 continue;
             }
 
@@ -384,6 +490,7 @@ pub fn start(app: AppHandle, port: u16) {
                         "lastSeq": g.last_seq(),
                         "endpoints": ["/event", "/hooks/claude", "/events", "/health"],
                     }),
+                    origin.as_deref(),
                 ));
                 continue;
             }
@@ -400,40 +507,83 @@ pub fn start(app: AppHandle, port: u16) {
                 let _ = request.respond(json_response(
                     200,
                     json!({ "lastSeq": g.last_seq(), "events": events }),
+                    origin.as_deref(),
                 ));
                 continue;
             }
 
-            let mut body = String::new();
-            if method == Method::Post {
-                let _ = std::io::Read::read_to_string(&mut request.as_reader(), &mut body);
-            }
+            let is_event_post = method == Method::Post && path == "/event";
+            let is_hook_post =
+                method == Method::Post && (path == "/hooks/claude" || path == "/hook/claude");
 
-            if method == Method::Post && path == "/event" {
-                match serde_json::from_str::<Value>(&body) {
-                    Ok(payload) => {
-                        eprintln!(
-                            "[petdeck-bridge] event state={} session={}",
-                            payload.get("state").and_then(|s| s.as_str()).unwrap_or("?"),
-                            payload
-                                .get("sessionId")
-                                .and_then(|s| s.as_str())
-                                .unwrap_or("?")
-                        );
-                        publish_event(&app, payload);
-                        let _ = request.respond(json_response(200, json!({"ok": true})));
-                    }
-                    Err(e) => {
-                        let _ = request.respond(json_response(
-                            400,
-                            json!({"ok": false, "error": e.to_string()}),
-                        ));
-                    }
+            if is_event_post || is_hook_post {
+                if !has_json_content_type(&request) {
+                    let _ = request.respond(json_response(
+                        415,
+                        json!({"ok": false, "error": "Content-Type must be application/json"}),
+                        origin.as_deref(),
+                    ));
+                    continue;
                 }
-                continue;
-            }
 
-            if method == Method::Post && (path == "/hooks/claude" || path == "/hook/claude") {
+                if !token_matches(
+                    expected_token.as_deref(),
+                    header_value(&request, "X-PetDeck-Token"),
+                ) {
+                    let _ = request.respond(json_response(
+                        401,
+                        json!({"ok": false, "error": "bridge token required"}),
+                        origin.as_deref(),
+                    ));
+                    continue;
+                }
+
+                let body = match read_body(&mut request) {
+                    Ok(body) => body,
+                    Err(error) => {
+                        let status = if error == "request body too large" {
+                            413
+                        } else {
+                            400
+                        };
+                        let _ = request.respond(json_response(
+                            status,
+                            json!({"ok": false, "error": error}),
+                            origin.as_deref(),
+                        ));
+                        continue;
+                    }
+                };
+
+                if is_event_post {
+                    match serde_json::from_str::<Value>(&body) {
+                        Ok(payload) => {
+                            eprintln!(
+                                "[petdeck-bridge] event state={} session={}",
+                                payload.get("state").and_then(|s| s.as_str()).unwrap_or("?"),
+                                payload
+                                    .get("sessionId")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("?")
+                            );
+                            publish_event(&app, payload);
+                            let _ = request.respond(json_response(
+                                200,
+                                json!({"ok": true}),
+                                origin.as_deref(),
+                            ));
+                        }
+                        Err(e) => {
+                            let _ = request.respond(json_response(
+                                400,
+                                json!({"ok": false, "error": e.to_string()}),
+                                origin.as_deref(),
+                            ));
+                        }
+                    }
+                    continue;
+                }
+
                 let phase_hint = query
                     .split('&')
                     .find_map(|p| p.strip_prefix("phase="))
@@ -452,20 +602,29 @@ pub fn start(app: AppHandle, port: u16) {
                                 .unwrap_or("?")
                         );
                         publish_event(&app, event);
-                        let _ = request.respond(json_response(200, json!({"ok": true})));
+                        let _ = request.respond(json_response(
+                            200,
+                            json!({"ok": true}),
+                            origin.as_deref(),
+                        ));
                     }
                     Err(e) => {
                         eprintln!("[petdeck-bridge] bad claude hook json: {e}");
                         let _ = request.respond(json_response(
                             200,
                             json!({"ok": false, "error": e.to_string()}),
+                            origin.as_deref(),
                         ));
                     }
                 }
                 continue;
             }
 
-            let _ = request.respond(json_response(404, json!({"ok": false, "error": "not found"})));
+            let _ = request.respond(json_response(
+                404,
+                json!({"ok": false, "error": "not found"}),
+                origin.as_deref(),
+            ));
         }
     });
 }
@@ -479,5 +638,37 @@ pub fn bridge_info() -> serde_json::Value {
         "claudeHook": format!("http://127.0.0.1:{}/hooks/claude", DEFAULT_PORT),
         "health": format!("http://127.0.0.1:{}/health", DEFAULT_PORT),
         "events": format!("http://127.0.0.1:{}/events", DEFAULT_PORT),
+        "tokenRequired": configured_token().is_some(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn allows_only_known_origins() {
+        assert!(allowed_origin("http://localhost:1420"));
+        assert!(allowed_origin("http://tauri.localhost"));
+        assert!(!allowed_origin("https://example.com"));
+        assert!(!allowed_origin("null"));
+    }
+
+    #[test]
+    fn accepts_json_with_parameters_only() {
+        assert!(is_json_content_type(Some("application/json")));
+        assert!(is_json_content_type(Some(
+            "application/json; charset=utf-8"
+        )));
+        assert!(!is_json_content_type(Some("text/plain")));
+        assert!(!is_json_content_type(None));
+    }
+
+    #[test]
+    fn token_is_optional_but_constant_time_checked_when_configured() {
+        assert!(token_matches(None, None));
+        assert!(token_matches(Some("abc"), Some("abc")));
+        assert!(!token_matches(Some("abc"), Some("abd")));
+        assert!(!token_matches(Some("abc"), None));
+    }
 }

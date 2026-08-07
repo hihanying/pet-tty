@@ -119,9 +119,13 @@ the generated MSI and NSIS installers to GitHub Releases.
 
 ### Privacy and security
 
-Runs locally. The bridge binds to `127.0.0.1:7788` and is intended for a trusted
-local machine; it does not provide remote authentication. Hooks only hit the
-local bridge. Don’t commit secrets.
+Runs locally. The bridge binds to `127.0.0.1:7788`, accepts JSON POST bodies up to
+256 KiB, and only grants browser CORS to the local dev/Tauri origins. Hooks and
+CLI requests without an `Origin` header remain compatible. For an additional
+write-side boundary, set `PETDECK_BRIDGE_TOKEN` before starting PetDeck and
+Claude Code; `pettty`, the hooks, and the PowerShell test scripts forward it via
+`X-PetDeck-Token`. In token mode, `pettty hooks` installs command-only hooks so
+the token is not written to `settings.json`. Never commit the token.
 
 ### Prerequisites
 

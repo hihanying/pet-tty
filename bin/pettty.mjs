@@ -141,18 +141,21 @@ function buildApp() {
 function httpJson(method, urlPath, body) {
   return new Promise((resolve, reject) => {
     const data = body ? JSON.stringify(body) : null;
+    const token = process.env.PETDECK_BRIDGE_TOKEN?.trim();
+    const headers = data
+      ? {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data),
+        }
+      : {};
+    if (token) headers["X-PetDeck-Token"] = token;
     const req = http.request(
       {
         hostname: "127.0.0.1",
         port: 7788,
         path: urlPath,
         method,
-        headers: data
-          ? {
-              "Content-Type": "application/json",
-              "Content-Length": Buffer.byteLength(data),
-            }
-          : {},
+        headers,
         timeout: 3000,
       },
       (res) => {

@@ -26,9 +26,13 @@ $bodyObj = [ordered]@{
 if ($Detail) { $bodyObj.detail = $Detail }
 
 $body = $bodyObj | ConvertTo-Json -Compress -Depth 5
+$headers = @{}
+if (-not [string]::IsNullOrWhiteSpace($env:PETDECK_BRIDGE_TOKEN)) {
+  $headers["X-PetDeck-Token"] = $env:PETDECK_BRIDGE_TOKEN.Trim()
+}
 
 try {
-  Invoke-RestMethod -Uri $Url -Method POST -Body $body -ContentType "application/json; charset=utf-8" | Out-Null
+  Invoke-RestMethod -Uri $Url -Method POST -Body $body -ContentType "application/json; charset=utf-8" -Headers $headers | Out-Null
   Write-Host "OK  [$Source] $State — $Title"
 } catch {
   Write-Host "FAIL — is PetDeck running? $_"
