@@ -20,6 +20,10 @@
     </style>
   </head>
   <body>
-    <script type="module" src="/src/confettiOverlay.ts"></script>
+    <script type="module">
+      // 入口必须显式调用：纯导出模块会被 Rollup 判定为无副作用而整块摇掉
+      import { playConfettiOverlay } from "/src/confettiOverlay.ts";
+      playConfettiOverlay();
+    </script>
   </body>
 </html>
