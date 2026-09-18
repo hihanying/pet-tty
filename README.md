@@ -51,7 +51,7 @@ This runs **`npm run tauri dev`** (Vite + Rust). Do **not** launch bare `debug/p
 #### Install the `pettty` command (once)
 
 ```powershell
-git clone https://github.com/Wanbinyu/pet-tty.git
+git clone https://github.com/hihanying/pet-tty.git
 cd pet-tty
 npm install
 powershell -ExecutionPolicy Bypass -File scripts/install-pettty.ps1
@@ -162,7 +162,7 @@ pettty
 #### 安装 `pettty` 命令（只需一次）
 
 ```powershell
-git clone https://github.com/Wanbinyu/pet-tty.git
+git clone https://github.com/hihanying/pet-tty.git
 cd pet-tty
 npm install
 powershell -ExecutionPolicy Bypass -File scripts/install-pettty.ps1

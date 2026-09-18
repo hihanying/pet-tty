@@ -45,6 +45,21 @@ pettty        # or: npm start  (= npm run tauri dev)
 3. **Fully quit** all Claude Code windows and reopen.
 4. Chat / use a tool — the pet bubble should show the working state, and the pet terminal logs `publish seq=…`.
 
+### Faster daily startup (recommended)
+
+`pettty` runs the dev flow (Vite + cargo check) every time — fine for development, sluggish for daily use. Build once, then start instantly:
+
+```bash
+pettty build     # one-time release build (a few minutes)
+pettty release   # instant start, no Vite / cargo involved
+```
+
+Even nicer: copy the app bundle to Applications and launch it like any macOS app (Spotlight / Dock / login items):
+
+```bash
+cp -R src-tauri/target/release/bundle/macos/PetDeck.app /Applications/
+```
+
 ### Commands
 
 Same as upstream — see the table in the [README](../README.md#english). Quick reference:
@@ -123,6 +138,21 @@ pettty        # 或者：npm start（= npm run tauri dev）
 2. 另开终端执行 `pettty hooks`——把 HTTP + command hooks 写入 `~/.claude/settings.json`（脚本会自动生成带时间戳的备份）。
 3. **完全退出**所有 Claude Code 窗口再重开。
 4. 随便聊一句或用个工具——宠物气泡应显示工作状态，宠物终端会输出 `publish seq=…`。
+
+### 日常快速启动（推荐）
+
+`pettty` 每次都走开发流程（起 Vite + cargo 检查），开发时没问题，日常用偏慢。构建一次，之后秒开：
+
+```bash
+pettty build     # 一次性发布构建（几分钟）
+pettty release   # 秒开，不再依赖 Vite / cargo
+```
+
+更省事的做法：把 App 拷进「应用程序」，当成普通 macOS 应用启动（聚焦搜索 / Dock / 登录自启都行）：
+
+```bash
+cp -R src-tauri/target/release/bundle/macos/PetDeck.app /Applications/
+```
 
 ### 命令速查
 
