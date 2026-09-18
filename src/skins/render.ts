@@ -40,6 +40,14 @@ export function applySkinToDom(
     hideAllLayers();
     spriteImg.classList.remove("hidden");
     spriteImg.classList.toggle("pixelated", !!skin.pixelated);
+    // 皮肤可指定显示高度（宽度按比例）；未指定则还原 CSS 默认框
+    if (skin.spriteDisplayHeight) {
+      spriteImg.style.width = "auto";
+      spriteImg.style.height = `${skin.spriteDisplayHeight}px`;
+    } else {
+      spriteImg.style.width = "";
+      spriteImg.style.height = "";
+    }
     spritePlayer.attach(spriteImg);
     spritePlayer.activate(skin);
     spritePlayer.setState(state);

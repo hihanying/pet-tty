@@ -43,5 +43,7 @@ export const LULU_SKIN: SkinMeta = {
   nameZh: "噜噜",
   kind: "sprite",
   builtin: true,
+  // 水豚又宽又圆，180x250 默认框会把帧放大回 ~195px 高、挡住气泡，压到 110px
+  spriteDisplayHeight: 110,
   manifest: { states },
 };

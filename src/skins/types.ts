@@ -47,6 +47,9 @@ export interface SkinMeta {
   vectorId?: string;
   /** sprite manifest when kind === sprite (Phase 2) */
   manifest?: SpriteManifest;
+  /** 显示框高度(px)，宽度按帧比例自适应；不设则用 .pet-sprite 默认 180x250 框。
+   *  注意 object-fit:contain 会把小帧放大到框宽，想显示更小必须用这个。 */
+  spriteDisplayHeight?: number;
   createdAt?: string;
 }
 
