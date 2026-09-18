@@ -1,8 +1,11 @@
 import type { SkinMeta } from "./types";
+import { LULU_SKIN } from "./lulu";
 import { VECTOR_CHARACTERS } from "./vector";
 
 /** Built-in skins (no external assets). */
 export const BUILTIN_SKINS: SkinMeta[] = [
+  // 噜噜置顶：默认皮肤，也作为未知皮肤的回落项
+  LULU_SKIN,
   {
     id: "ember",
     nameEn: "Ember Fox",
@@ -38,4 +41,4 @@ export const BUILTIN_SKINS: SkinMeta[] = [
   })),
 ];
 
-export const DEFAULT_SKIN_ID = "vec-maid";
+export const DEFAULT_SKIN_ID = "lulu-capybara";
