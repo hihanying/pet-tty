@@ -13,6 +13,7 @@ const LIFETIME_MS: u64 = 3200;
 /// 前端在任务成功时调用；每次创建新覆盖层，动画结束自动销毁。
 #[tauri::command]
 pub fn confetti_burst(app: AppHandle) {
+    eprintln!("[pettty] confetti_burst invoked");
     // 残留窗口先回收，避免叠加
     if let Some(w) = app.get_webview_window(LABEL) {
         let _ = w.destroy();
@@ -39,6 +40,7 @@ pub fn confetti_burst(app: AppHandle) {
 
     match win {
         Ok(w) => {
+            eprintln!("[pettty] confetti window created");
             let _ = w.set_ignore_cursor_events(true);
             let handle = app.clone();
             std::thread::spawn(move || {

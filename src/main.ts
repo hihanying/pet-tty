@@ -674,7 +674,10 @@ function maybeConfetti(state: AgentState) {
   const now = Date.now();
   if (now - _lastConfettiAt < 8000) return;
   _lastConfettiAt = now;
-  void invoke("confetti_burst").catch(() => {});
+  void invoke("confetti_burst").catch((e) => {
+    // 失败别静默：打到终端日志，方便排查 ACL/窗口问题
+    void invoke("ui_log", { message: `confetti error: ${e}` }).catch(() => {});
+  });
 }
 
 function updateBubble(event: AgentEvent | null) {
