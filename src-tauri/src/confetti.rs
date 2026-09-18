@@ -39,7 +39,7 @@ pub fn confetti_burst(app: AppHandle) {
 
     match win {
         Ok(w) => {
-            let _ = w.ignore_cursor_events(true);
+            let _ = w.set_ignore_cursor_events(true);
             let handle = app.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(LIFETIME_MS));
