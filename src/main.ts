@@ -664,12 +664,26 @@ function displayTitle(event: AgentEvent): string {
   return event.title || stateLabel(event.state);
 }
 
+// —— 成功礼花：进入 success 状态时边沿触发（8s 冷却防连喷） ——
+let _prevBubbleState: AgentState | null = null;
+let _lastConfettiAt = 0;
+function maybeConfetti(state: AgentState) {
+  const entering = state === "success" && _prevBubbleState !== "success";
+  _prevBubbleState = state;
+  if (!entering || !isTauri()) return;
+  const now = Date.now();
+  if (now - _lastConfettiAt < 8000) return;
+  _lastConfettiAt = now;
+  void invoke("confetti_burst").catch(() => {});
+}
+
 function updateBubble(event: AgentEvent | null) {
   const bubble = $("bubble");
   if (!event || !showBubble) {
     bubble.classList.add("hidden");
     return;
   }
+  maybeConfetti(event.state);
 
   // Per-state title/detail/visibility. Mood lines (working / completion /
   // idle) replace the raw title; the technical info drops to the detail line so

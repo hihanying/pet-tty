@@ -1,5 +1,6 @@
 mod bridge;
 mod claude_watch;
+mod confetti;
 
 use serde::Serialize;
 use tauri::Manager;
@@ -33,6 +34,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             app_info,
             ui_log,
+            confetti::confetti_burst,
             bridge::bridge_info,
             bridge::pull_agent_events,
             claude_watch::claude_presence_snapshot
