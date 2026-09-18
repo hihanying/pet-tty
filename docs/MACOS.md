@@ -54,9 +54,10 @@ pettty build     # one-time release build (a few minutes)
 pettty release   # instant start, no Vite / cargo involved
 ```
 
-Even nicer: copy the app bundle to Applications and launch it like any macOS app (Spotlight / Dock / login items):
+Even nicer: build a macOS `.app` bundle (one extra flag — the default bundle targets are Windows-only, and this override doesn't touch them), then launch it like any macOS app (Spotlight / Dock / login items):
 
 ```bash
+npm run tauri build -- --bundles app
 cp -R src-tauri/target/release/bundle/macos/PetDeck.app /Applications/
 ```
 
@@ -148,9 +149,10 @@ pettty build     # 一次性发布构建（几分钟）
 pettty release   # 秒开，不再依赖 Vite / cargo
 ```
 
-更省事的做法：把 App 拷进「应用程序」，当成普通 macOS 应用启动（聚焦搜索 / Dock / 登录自启都行）：
+更省事的做法：加一个参数构建出 macOS `.app`（默认打包目标只有 Windows 格式，此参数只影响本次构建），然后当成普通 macOS 应用启动（聚焦搜索 / Dock / 登录自启都行）：
 
 ```bash
+npm run tauri build -- --bundles app
 cp -R src-tauri/target/release/bundle/macos/PetDeck.app /Applications/
 ```
 
