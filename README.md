@@ -5,19 +5,19 @@
   给 Claude Code 的桌面宠物 · 终端输入 <code>pettty</code> 启动
 </p>
 
-<p align="center"><strong>Windows-first development build. Tagged releases publish MSI and NSIS installers.</strong></p>
+<p align="center"><strong>Windows-first upstream · This fork adds <a href="docs/MACOS.md">macOS support</a> (build from source).</strong><br/>上游为 Windows 优先；本 fork 新增 macOS 源码构建支持，详见 <a href="docs/MACOS.md">macOS 安装与使用指南</a>。</p>
 
 <p align="center">
   <a href="https://github.com/Wanbinyu/pet-tty/releases"><img src="https://img.shields.io/github/v/release/Wanbinyu/pet-tty?label=version" alt="version"/></a>
   <a href="https://github.com/Wanbinyu/pet-tty/actions/workflows/ci.yml"><img src="https://github.com/Wanbinyu/pet-tty/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://github.com/Wanbinyu/pet-tty"><img src="https://img.shields.io/github/stars/Wanbinyu/pet-tty?style=social" alt="stars"/></a>
-  <img src="https://img.shields.io/badge/platform-Windows-0078D4" alt="platform"/>
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-0078D4" alt="platform"/>
   <img src="https://img.shields.io/badge/stack-Tauri%202%20%7C%20Vite%20%7C%20Rust-DEA584" alt="stack"/>
   <img src="https://img.shields.io/github/license/Wanbinyu/pet-tty?color=blue" alt="license"/>
 </p>
 
 <p align="center">
-  <a href="#english">English</a> · <a href="#中文">中文</a> · <a href="docs/SPRITES.md">Skins / 皮肤</a>
+  <a href="#english">English</a> · <a href="#中文">中文</a> · <a href="docs/MACOS.md">macOS Guide / 指南</a> · <a href="docs/SPRITES.md">Skins / 皮肤</a>
 </p>
 
 ---

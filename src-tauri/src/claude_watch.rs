@@ -71,7 +71,12 @@ fn pid_alive(pid: u32) -> bool {
     }
     #[cfg(not(windows))]
     {
-        std::path::Path::new(&format!("/proc/{pid}")).exists()
+        // macOS/BSD 没有 /proc，用 kill -0 探测进程存活
+        Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
     }
 }
 
@@ -113,7 +118,8 @@ fn process_scan_count() -> usize {
     #[cfg(not(windows))]
     {
         let out = Command::new("sh")
-            .args(["-c", "pgrep -af 'claude' 2>/dev/null | head -20"])
+            // BSD pgrep（macOS）不支持 -a，用 -fl 输出 pid + 完整命令行
+            .args(["-c", "pgrep -fl 'claude' 2>/dev/null | head -20"])
             .output();
         match out {
             Ok(o) => {
