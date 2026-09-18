@@ -125,7 +125,8 @@ body {
 }
 
 .bubble {
-  max-width: 176px;
+  /* 固定宽度：状态文案多行、心情语单行，气泡宽窄跳变不好看 */
+  width: 176px;
   margin-bottom: 6px;
   padding: 8px 10px;
   border-radius: 12px;
